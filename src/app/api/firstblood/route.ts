@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/const';
+import { Client } from 'pg';
 
 async function sendDiscordNotification(payload: any) {
   const botToken = process.env.DISCORD_BOT_TOKEN;
@@ -186,64 +187,100 @@ export async function POST(req: Request) {
     const firstSolve = solves[0];
     const isFirstBlood = solveId ? firstSolve.id === solveId : firstSolve.user_id === userId;
 
-    // 2. Fetch User Info
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('username')
-      .eq('id', userId)
-      .single();
-
-    if (userError) {
-      console.error('[FirstBlood Webhook] Supabase user fetch error details:', {
-        message: userError.message,
-        details: userError.details,
-        hint: userError.hint,
-        code: userError.code,
-      });
-    }
-    const username = user?.username || 'Unknown Player';
-
-    // 3. Fetch Challenge Info
-    const { data: challenge, error: challengeError } = await supabase
-      .from('challenges')
-      .select('title, category')
-      .eq('id', challengeId)
-      .single();
-
-    if (challengeError) {
-      console.error('[FirstBlood Webhook] Supabase challenge fetch error details:', {
-        message: challengeError.message,
-        details: challengeError.details,
-        hint: challengeError.hint,
-        code: challengeError.code,
-      });
-      return NextResponse.json({ 
-        error: `Supabase challenge fetch failed: ${challengeError.message}`, 
-        details: challengeError.details 
-      }, { status: 500 });
-    }
-
-    if (!challenge) {
-      console.log('[FirstBlood Webhook] Challenge details not found for ID:', challengeId);
-      return NextResponse.json({ error: 'Challenge details not found' }, { status: 404 });
-    }
-
-    // 4. Fetch Team Name
+    // 2. Fetch Details (User, Challenge, Team)
+    let username = 'Unknown Player';
+    let challengeTitle = 'Unknown';
+    let challengeCategory = 'Unknown';
     let teamName = '-';
-    try {
-      const { data: teamMember } = await supabase
-        .from('team_members')
-        .select('teams(name)')
-        .eq('user_id', userId)
-        .limit(1)
-        .maybeSingle();
+    let dbSuccess = false;
 
-      const resolvedTeam = (teamMember as any)?.teams?.name;
-      if (resolvedTeam) {
-        teamName = resolvedTeam;
+    const dbUrl = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
+    if (dbUrl) {
+      const connectionString = dbUrl.replace(/sslmode=[^&]+&?/, '').replace(/\?$/, '').replace(/\?&/, '?');
+      const pgClient = new Client({
+        connectionString,
+        ssl: { rejectUnauthorized: false }
+      });
+      try {
+        await pgClient.connect();
+        const dbRes = await pgClient.query(`
+          SELECT 
+            u.username,
+            c.title AS challenge_title,
+            c.category AS challenge_category,
+            t.name AS team_name
+          FROM public.users u
+          CROSS JOIN public.challenges c
+          LEFT JOIN public.team_members tm ON tm.user_id = u.id
+          LEFT JOIN public.teams t ON t.id = tm.team_id
+          WHERE u.id = $1 AND c.id = $2
+        `, [userId, challengeId]);
+
+        if (dbRes.rows.length > 0) {
+          const row = dbRes.rows[0];
+          username = row.username || 'Unknown Player';
+          challengeTitle = row.challenge_title || 'Unknown';
+          challengeCategory = row.challenge_category || 'Unknown';
+          teamName = row.team_name ? row.team_name.trim() : '-';
+          dbSuccess = true;
+        }
+      } catch (dbErr: any) {
+        console.error('[FirstBlood Webhook] Direct DB query failed, falling back to Supabase client:', dbErr.message);
+      } finally {
+        try {
+          await pgClient.end();
+        } catch (e) {}
       }
-    } catch (err) {
-      console.error('[FirstBlood Webhook] Failed to fetch team info:', err);
+    }
+
+    // Fallback to Supabase client queries if DB query was not successful
+    if (!dbSuccess) {
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', userId)
+        .single();
+
+      if (userError) {
+        console.error('[FirstBlood Webhook] Supabase user fetch error details:', userError);
+      }
+      username = user?.username || 'Unknown Player';
+
+      const { data: challenge, error: challengeError } = await supabase
+        .from('challenges')
+        .select('title, category')
+        .eq('id', challengeId)
+        .single();
+
+      if (challengeError) {
+        console.error('[FirstBlood Webhook] Supabase challenge fetch error details:', challengeError);
+        return NextResponse.json({ 
+          error: `Supabase challenge fetch failed: ${challengeError.message}`
+        }, { status: 500 });
+      }
+
+      if (!challenge) {
+        return NextResponse.json({ error: 'Challenge details not found' }, { status: 404 });
+      }
+
+      challengeTitle = challenge.title || 'Unknown';
+      challengeCategory = challenge.category || 'Unknown';
+
+      try {
+        const { data: teamMember } = await supabase
+          .from('team_members')
+          .select('teams(name)')
+          .eq('user_id', userId)
+          .limit(1)
+          .maybeSingle();
+
+        const resolvedTeam = (teamMember as any)?.teams?.name;
+        if (resolvedTeam) {
+          teamName = resolvedTeam.trim();
+        }
+      } catch (err) {
+        console.error('[FirstBlood Webhook] Failed to fetch team info:', err);
+      }
     }
 
     // 5. Send to Discord
@@ -272,12 +309,12 @@ export async function POST(req: Request) {
             },
             {
               name: '📂 Category',
-              value: challenge.category,
+              value: challengeCategory,
               inline: true
             },
             {
               name: '🚩 Challenge',
-              value: `**${challenge.title}**`,
+              value: `**${challengeTitle}**`,
               inline: true
             }
           ],
@@ -291,7 +328,7 @@ export async function POST(req: Request) {
 
     await sendDiscordNotification(discordPayload);
 
-    console.log(`[FirstBlood Webhook] Sent Discord notification for ${username} on ${challenge.title} (First Blood: ${isFirstBlood})`);
+    console.log(`[FirstBlood Webhook] Sent Discord notification for ${username} on ${challengeTitle} (First Blood: ${isFirstBlood})`);
     return NextResponse.json({ 
       success: true, 
       message: isFirstBlood ? 'First blood notification sent to Discord' : 'Solve notification sent to Discord',

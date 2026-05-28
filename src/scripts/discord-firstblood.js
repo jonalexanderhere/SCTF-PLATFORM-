@@ -1,5 +1,6 @@
 const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
+const { Client } = require('pg');
 
 // Load environment variables from .env.local or .env
 const loadEnv = () => {
@@ -215,43 +216,91 @@ const channel = supabase
       const isFirstBlood = solves[0].id === solve.id;
       console.log(`[Discord Bot] Solve detected (First Blood: ${isFirstBlood}). Preparing Discord embed...`);
 
-      // 2. Fetch Player Info
-      const { data: user } = await supabase
-        .from('users')
-        .select('username')
-        .eq('id', solve.user_id)
-        .single();
-      
-      const username = user ? user.username : 'Unknown';
+      // 2. Fetch Details (User, Challenge, Team)
+      let username = 'Unknown';
+      let challengeTitle = 'Unknown';
+      let challengeCategory = 'Unknown';
+      let teamName = '-';
+      let dbSuccess = false;
 
-      // 3. Fetch Challenge Info
-      const { data: challenge } = await supabase
-        .from('challenges')
-        .select('title, category')
-        .eq('id', solve.challenge_id)
-        .single();
+      const dbUrl = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
+      if (dbUrl) {
+        const connectionString = dbUrl.replace(/sslmode=[^&]+&?/, '').replace(/\?$/, '').replace(/\?&/, '?');
+        const pgClient = new Client({
+          connectionString,
+          ssl: { rejectUnauthorized: false }
+        });
+        try {
+          await pgClient.connect();
+          const dbRes = await pgClient.query(`
+            SELECT 
+              u.username,
+              c.title AS challenge_title,
+              c.category AS challenge_category,
+              t.name AS team_name
+            FROM public.users u
+            CROSS JOIN public.challenges c
+            LEFT JOIN public.team_members tm ON tm.user_id = u.id
+            LEFT JOIN public.teams t ON t.id = tm.team_id
+            WHERE u.id = $1 AND c.id = $2
+          `, [solve.user_id, solve.challenge_id]);
 
-      if (!challenge) {
-        console.warn('[Discord Bot] Challenge not found. ID:', solve.challenge_id);
-        return;
+          if (dbRes.rows.length > 0) {
+            const row = dbRes.rows[0];
+            username = row.username || 'Unknown';
+            challengeTitle = row.challenge_title || 'Unknown';
+            challengeCategory = row.challenge_category || 'Unknown';
+            teamName = row.team_name ? row.team_name.trim() : '-';
+            dbSuccess = true;
+          }
+        } catch (dbErr) {
+          console.error('[Discord Bot] Direct DB query failed, falling back to Supabase client:', dbErr.message);
+        } finally {
+          try {
+            await pgClient.end();
+          } catch (e) {}
+        }
       }
 
-      // 4. Fetch Team Name
-      let teamName = '-';
-      try {
-        const { data: teamMember } = await supabase
-          .from('team_members')
-          .select('teams(name)')
-          .eq('user_id', solve.user_id)
-          .limit(1)
-          .maybeSingle();
+      // Fallback to Supabase client queries if DB query was not successful
+      if (!dbSuccess) {
+        const { data: user } = await supabase
+          .from('users')
+          .select('username')
+          .eq('id', solve.user_id)
+          .single();
+        
+        username = user ? user.username : 'Unknown';
 
-        const resolvedTeam = teamMember?.teams?.name;
-        if (resolvedTeam) {
-          teamName = resolvedTeam;
+        const { data: challenge } = await supabase
+          .from('challenges')
+          .select('title, category')
+          .eq('id', solve.challenge_id)
+          .single();
+
+        if (!challenge) {
+          console.warn('[Discord Bot] Challenge not found. ID:', solve.challenge_id);
+          return;
         }
-      } catch (err) {
-        console.error('[Discord Bot] Failed to resolve team name:', err.message);
+
+        challengeTitle = challenge.title || 'Unknown';
+        challengeCategory = challenge.category || 'Unknown';
+
+        try {
+          const { data: teamMember } = await supabase
+            .from('team_members')
+            .select('teams(name)')
+            .eq('user_id', solve.user_id)
+            .limit(1)
+            .maybeSingle();
+
+          const resolvedTeam = teamMember?.teams?.name;
+          if (resolvedTeam) {
+            teamName = resolvedTeam.trim();
+          }
+        } catch (err) {
+          console.error('[Discord Bot] Failed to resolve team name:', err.message);
+        }
       }
 
       // 5. Send Discord Embed
@@ -280,12 +329,12 @@ const channel = supabase
               },
               {
                 name: '📂 Category',
-                value: challenge.category,
+                value: challengeCategory,
                 inline: true
               },
               {
                 name: '🚩 Challenge',
-                value: `**${challenge.title}**`,
+                value: `**${challengeTitle}**`,
                 inline: true
               }
             ],
@@ -298,7 +347,7 @@ const channel = supabase
       };
 
       await sendDiscordNotification(discordPayload);
-      console.log(`[Discord Bot] Successfully sent solve alert to Discord for player "${username}" on challenge "${challenge.title}" (First Blood: ${isFirstBlood})`);
+      console.log(`[Discord Bot] Successfully sent solve alert to Discord for player "${username}" on challenge "${challengeTitle}" (First Blood: ${isFirstBlood})`);
 
     } catch (err) {
       console.error('[Discord Bot] Error handling solve change:', err.message);
