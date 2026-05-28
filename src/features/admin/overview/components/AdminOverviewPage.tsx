@@ -2,7 +2,7 @@
 
 import { Loader } from '@/shared/components'
 import { Card, CardContent } from '@/shared/ui'
-import { Users, ShieldAlert, User } from 'lucide-react'
+import { Users, ShieldAlert, User, Logs } from 'lucide-react'
 import Link from 'next/link'
 import AuditLogList from './AuditLogList'
 import OverviewStatsCards from './OverviewStatsCards'
@@ -30,7 +30,7 @@ export default function AdminOverviewPage() {
       <div className="space-y-6">
         <OverviewStatsCards siteInfo={siteInfo} challengeCount={challenges.length} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Link href="/admin/teams">
             <Card className="bg-indigo-600 hover:bg-indigo-700 text-white transition-all cursor-pointer shadow-lg shadow-indigo-500/20 group">
               <CardContent className="pt-6">
@@ -66,6 +66,19 @@ export default function AdminOverviewPage() {
                     <p className="text-emerald-100 text-sm opacity-80">View all users, search, and delete accounts</p>
                   </div>
                   <User className="w-8 h-8 opacity-40 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/admin/logs">
+            <Card className="bg-blue-600 hover:bg-blue-700 text-white transition-all cursor-pointer shadow-lg shadow-blue-500/20 group">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-bold">All Logs</h3>
+                    <p className="text-blue-100 text-sm opacity-80">Track telemetry, views, and flag attempts</p>
+                  </div>
+                  <Logs className="w-8 h-8 opacity-40 group-hover:opacity-100 transition-opacity" />
                 </div>
               </CardContent>
             </Card>

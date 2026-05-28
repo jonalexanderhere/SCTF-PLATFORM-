@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { Users, ShieldAlert, User } from 'lucide-react'
+import { Users, ShieldAlert, User, Logs } from 'lucide-react'
 import { Button, Card, CardContent } from '@/shared/ui'
 import ChallengeOverviewCard from './ChallengeOverviewCard'
 import RecentSolversList from './RecentSolversList'
@@ -46,6 +46,12 @@ const ChallengeSidebar: React.FC<ChallengeSidebarProps> = ({
             <Button variant="outline" className="w-full border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-950/30 hover:text-indigo-700 dark:hover:text-indigo-300 gap-2">
               <User className="w-4 h-4" />
               Manage Users
+            </Button>
+          </Link>
+          <Link href="/admin/logs">
+            <Button variant="outline" className="w-full border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-950/30 hover:text-indigo-700 dark:hover:text-indigo-300 gap-2">
+              <Logs className="w-4 h-4" />
+              All Logs
             </Button>
           </Link>
         </CardContent>
