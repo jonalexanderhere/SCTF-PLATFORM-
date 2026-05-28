@@ -190,3 +190,61 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    // 1. Authorize admin
+    const authHeader = request.headers.get('Authorization');
+    const token = authHeader?.split(' ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized: Missing token' }, { status: 401 });
+    }
+
+    const userSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    });
+
+    const { data: { user }, error: userErr } = await userSupabase.auth.getUser();
+    if (userErr || !user) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
+    }
+
+    const { data: isAdmin, error: adminErr } = await userSupabase.rpc('is_admin');
+    if (adminErr || !isAdmin) {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    }
+
+    const dbUrl = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
+    if (!dbUrl) {
+      return NextResponse.json({ error: 'Database connection URL not configured' }, { status: 500 });
+    }
+
+    const connectionString = dbUrl.replace(/sslmode=[^&]+&?/, '').replace(/\?$/, '').replace(/\?&/, '?');
+    const pgClient = new Client({
+      connectionString,
+      ssl: { rejectUnauthorized: false }
+    });
+
+    await pgClient.connect();
+
+    // 2. Clear telemetry tables
+    await pgClient.query('DELETE FROM public.challenge_views;');
+    await pgClient.query('DELETE FROM public.flag_submissions;');
+
+    await pgClient.end();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Successfully cleared all telemetry logs'
+    });
+
+  } catch (err: any) {
+    console.error('[AdminLogs DELETE API] Error:', err);
+    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+  }
+}
+

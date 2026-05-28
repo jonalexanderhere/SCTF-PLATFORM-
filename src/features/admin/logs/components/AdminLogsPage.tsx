@@ -12,7 +12,8 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  ShieldAlert
+  ShieldAlert,
+  Trash2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { 
@@ -28,7 +29,13 @@ import {
   TableCell, 
   TableHead, 
   TableHeader, 
-  TableRow 
+  TableRow,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
 } from '@/shared/ui'
 import { Loader } from '@/shared/components'
 import { useAuth } from '@/shared/hooks'
@@ -82,6 +89,10 @@ export default function AdminLogsPage() {
   const [total, setTotal] = useState(0)
   const [limit] = useState(25)
   const [page, setPage] = useState(1)
+
+  // Clear logs modal state
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
 
   // Verify Admin Access
   useEffect(() => {
@@ -183,6 +194,43 @@ export default function AdminLogsPage() {
     fetchLogs(false)
   }
 
+  // Handle Clear Logs action
+  const handleClearLogs = async () => {
+    setIsClearing(true)
+    try {
+      const { supabase } = await import('@/shared/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      if (!token) {
+        toast.error('Session token not found.')
+        return
+      }
+
+      const res = await fetch('/api/admin/logs', {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to clear logs')
+      }
+
+      toast.success('Successfully cleared all telemetry logs!')
+      setClearConfirmOpen(false)
+      setPage(1)
+      fetchLogs(false)
+    } catch (err: any) {
+      console.error('[AdminLogsPage] Clear error:', err)
+      toast.error(err.message || 'Failed to clear logs')
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
   // Formatting helper for date strings
   const formatDate = (dateStr: string) => {
     try {
@@ -233,6 +281,16 @@ export default function AdminLogsPage() {
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setClearConfirmOpen(true)}
+              disabled={isRefreshing || isLoading || logs.length === 0}
+              className="gap-2 border-red-200 text-red-600 dark:border-red-900 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
+            >
+              <Trash2 className="w-4 h-4" />
+              Clear Logs
             </Button>
           </div>
         </div>
@@ -496,6 +554,39 @@ export default function AdminLogsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Clear confirmation dialog */}
+      <Dialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+              Clear All Telemetry Logs
+            </DialogTitle>
+            <DialogDescription className="text-gray-500 dark:text-gray-400 pt-2">
+              Are you sure you want to delete all challenge views and flag submission telemetry logs?
+              This will reset stats and suspects list. This action is permanent and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setClearConfirmOpen(false)}
+              disabled={isClearing}
+              className="dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleClearLogs}
+              disabled={isClearing}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
+              {isClearing ? 'Clearing...' : 'Yes, Clear All'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminPageShell>
   )
 }
