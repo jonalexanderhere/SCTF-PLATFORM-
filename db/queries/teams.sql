@@ -542,6 +542,22 @@ BEGIN
           FROM public.team_members tm
           JOIN public.users u ON u.id = tm.user_id
           WHERE tm.team_id = t.id
+        ),
+        'members', (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'id', u.id,
+                'username', u.username,
+                'is_captain', (u.id = t.captain_user_id)
+              )
+              ORDER BY (u.id = t.captain_user_id) DESC, tm.joined_at ASC
+            ),
+            '[]'::json
+          )
+          FROM public.team_members tm
+          JOIN public.users u ON u.id = tm.user_id
+          WHERE tm.team_id = t.id
         )
       )
       ORDER BY t.created_at DESC

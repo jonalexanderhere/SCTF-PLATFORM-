@@ -493,6 +493,8 @@ DECLARE
   v_requester UUID := auth.uid()::uuid;
   v_is_member BOOLEAN;
   v_is_captain BOOLEAN;
+  v_captain_id UUID;
+  v_next_captain UUID;
 BEGIN
   IF v_requester IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
@@ -515,6 +517,20 @@ BEGIN
 
   IF NOT is_admin() AND NOT v_is_captain THEN
     RAISE EXCEPTION 'Only captain or admin can kick members';
+  END IF;
+
+  -- If the kicked member is the captain, find the next captain
+  SELECT captain_user_id INTO v_captain_id
+  FROM public.teams WHERE id = p_team_id;
+
+  IF v_captain_id = p_user_id THEN
+    SELECT user_id INTO v_next_captain
+    FROM public.team_members
+    WHERE team_id = p_team_id AND user_id != p_user_id
+    ORDER BY joined_at ASC
+    LIMIT 1;
+
+    UPDATE public.teams SET captain_user_id = v_next_captain WHERE id = p_team_id;
   END IF;
 
   DELETE FROM public.team_members

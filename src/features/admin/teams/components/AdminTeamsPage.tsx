@@ -1,17 +1,28 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { adminGetAllTeams, createTeam, deleteTeam, regenerateTeamInviteCode, TeamInfo } from '@/shared/lib/teams'
+import { adminGetAllTeams, createTeam, deleteTeam, regenerateTeamInviteCode, kickTeamMember, TeamInfo } from '@/shared/lib/teams'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { Input } from '@/shared/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/ui/dialog'
 import { Label } from '@/shared/ui/label'
-import { Copy, Plus, RefreshCw, Trash2, Shield, Key, Lock, Users } from 'lucide-react'
+import { Copy, Plus, RefreshCw, Trash2, Shield, Key, Lock, Users, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
-type AdminTeam = TeamInfo & { member_count: number; captain_user_id: string | null; member_names?: string[] }
+type AdminTeamMember = {
+	id: string
+	username: string
+	is_captain: boolean
+}
+
+type AdminTeam = TeamInfo & {
+	member_count: number
+	captain_user_id: string | null
+	member_names?: string[]
+	members?: AdminTeamMember[]
+}
 
 export function AdminTeamsPage() {
 	const [teams, setTeams] = useState<AdminTeam[]>([])
@@ -74,6 +85,22 @@ export function AdminTeamsPage() {
 		} else {
 			toast.success('Invite code regenerated')
 			fetchTeams()
+		}
+	}
+
+	const handleKickMember = async (teamId: string, teamName: string, userId: string, username: string, isCaptain: boolean) => {
+		const confirmMsg = isCaptain
+			? `Are you sure you want to remove the CAPTAIN "${username}" from team "${teamName}"? Another member will be promoted to captain.`
+			: `Are you sure you want to remove "${username}" from team "${teamName}"?`
+
+		if (!confirm(confirmMsg)) return
+
+		const { success, error } = await kickTeamMember(teamId, userId)
+		if (success) {
+			toast.success(`Removed ${username} from team`)
+			fetchTeams()
+		} else {
+			toast.error(error || 'Failed to remove member')
 		}
 	}
 
@@ -198,14 +225,39 @@ export function AdminTeamsPage() {
 														<Shield className="w-3 h-3 mr-1" />
 														{team.id}
 													</span>
-													{team.member_names && team.member_names.length > 0 && (
-														<div className="flex flex-wrap gap-1 mt-2">
-															{team.member_names.map((name, i) => (
-																<span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-																	{name}
+													{team.members && team.members.length > 0 ? (
+														<div className="flex flex-wrap gap-1.5 mt-2">
+															{team.members.map((member) => (
+																<span
+																	key={member.id}
+																	className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border transition-all ${
+																		member.is_captain
+																			? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+																			: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+																	}`}
+																>
+																	{member.is_captain && <Shield className="w-3 h-3 text-amber-400 fill-amber-400/20" />}
+																	<span>{member.username}</span>
+																	<button
+																		onClick={() => handleKickMember(team.id, team.name, member.id, member.username, member.is_captain)}
+																		className="hover:bg-white/10 rounded p-0.5 ml-1 transition-colors text-neutral-500 hover:text-red-400"
+																		title={`Remove ${member.username} from team`}
+																	>
+																		<X className="w-3 h-3" />
+																	</button>
 																</span>
 															))}
 														</div>
+													) : (
+														team.member_names && team.member_names.length > 0 && (
+															<div className="flex flex-wrap gap-1 mt-2">
+																{team.member_names.map((name, i) => (
+																	<span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+																		{name}
+																	</span>
+																))}
+															</div>
+														)
 													)}
 												</div>
 											</TableCell>
