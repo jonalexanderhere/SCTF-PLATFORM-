@@ -22,7 +22,8 @@ CREATE TABLE public.challenges (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   total_solves INTEGER DEFAULT 0,
-  flag_placeholder BOOLEAN DEFAULT false
+  flag_placeholder BOOLEAN DEFAULT false,
+  wave INTEGER DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_challenges_event_id ON public.challenges(event_id);

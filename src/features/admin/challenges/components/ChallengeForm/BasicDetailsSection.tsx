@@ -94,6 +94,27 @@ export const BasicDetailsSection: React.FC<BasicDetailsSectionProps> = ({
           </SelectContent>
         </Select>
       </div>
+
+      {formData.event_id && events && (
+        <div className="md:col-span-2">
+          <Label>Event Wave</Label>
+          <Select
+            value={String(formData.wave || 1)}
+            onValueChange={v => onChange({ ...formData, wave: parseInt(v, 10) || 1 })}
+          >
+            <SelectTrigger className="w-full transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:border-primary-500 dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-900 rounded-md shadow-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg">
+              {Array.from({ length: events.find(e => e.id === formData.event_id)?.waves_count || 1 }, (_, i) => (
+                <SelectItem key={i + 1} value={String(i + 1)}>
+                  Wave {i + 1}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   )
 }

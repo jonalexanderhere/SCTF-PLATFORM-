@@ -7,7 +7,7 @@ import APP from '@/config'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/shared/ui'
 import { MarkdownRenderer } from '@/shared/components'
 import { DIALOG_CONTENT_CLASS } from '@/shared/styles'
-import type { Attachment, ChallengeWithSolve } from '@/shared/types'
+import type { Attachment, ChallengeWithSolve, Event } from '@/shared/types'
 import ChallengeServicesPanel from './ChallengeServicesPanel'
 import HintDialog from './HintDialog'
 import SolversList from './SolversList'
@@ -61,7 +61,7 @@ interface ChallengeDetailDialogProps {
   downloadFile: (attachment: Attachment, attachmentKey: string) => void
   showHintModal: HintModalState
   setShowHintModal: (modal: HintModalState) => void
-  events?: { id: string; name: string }[]
+  events?: Event[]
   subChallengeLoaded: boolean
   subChallengeLoading: boolean
   subChallengeSubmitting: boolean
@@ -297,6 +297,7 @@ const ChallengeDetailDialog: React.FC<ChallengeDetailDialogProps> = ({
             flagFeedback={flagFeedback}
             handleFlagInputChange={handleFlagInputChange}
             handleFlagSubmit={handleFlagSubmit}
+            isEventPaused={events?.find(e => e.id === challenge.event_id)?.is_paused || false}
           />
         )}
 

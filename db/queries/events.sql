@@ -10,7 +10,8 @@ CREATE OR REPLACE FUNCTION add_event(
   p_start_time TIMESTAMPTZ DEFAULT NULL,
   p_end_time TIMESTAMPTZ DEFAULT NULL,
   p_always_show_challenges BOOLEAN DEFAULT FALSE,
-  p_image_url TEXT DEFAULT NULL
+  p_image_url TEXT DEFAULT NULL,
+  p_waves_count INTEGER DEFAULT 1
 )
 RETURNS UUID AS $$
 DECLARE
@@ -20,8 +21,8 @@ BEGIN
     RAISE EXCEPTION 'Only admin can add event';
   END IF;
 
-  INSERT INTO public.events(name, description, start_time, end_time, always_show_challenges, image_url)
-  VALUES (p_name, COALESCE(p_description, ''), p_start_time, p_end_time, COALESCE(p_always_show_challenges, FALSE), p_image_url)
+  INSERT INTO public.events(name, description, start_time, end_time, always_show_challenges, image_url, waves_count)
+  VALUES (p_name, COALESCE(p_description, ''), p_start_time, p_end_time, COALESCE(p_always_show_challenges, FALSE), p_image_url, COALESCE(p_waves_count, 1))
   RETURNING id INTO v_event_id;
 
   RETURN v_event_id;
@@ -29,7 +30,7 @@ END;
 $$ LANGUAGE plpgsql
 SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION add_event(TEXT, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, BOOLEAN, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION add_event(TEXT, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, BOOLEAN, TEXT, INTEGER) TO authenticated;
 
 -- UPDATE
 CREATE OR REPLACE FUNCTION update_event(
@@ -39,7 +40,8 @@ CREATE OR REPLACE FUNCTION update_event(
   p_start_time TIMESTAMPTZ DEFAULT NULL,
   p_end_time TIMESTAMPTZ DEFAULT NULL,
   p_always_show_challenges BOOLEAN DEFAULT NULL,
-  p_image_url TEXT DEFAULT NULL
+  p_image_url TEXT DEFAULT NULL,
+  p_waves_count INTEGER DEFAULT NULL
 )
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -54,6 +56,7 @@ BEGIN
       end_time = p_end_time,
       always_show_challenges = COALESCE(p_always_show_challenges, always_show_challenges),
       image_url = COALESCE(p_image_url, image_url),
+      waves_count = COALESCE(p_waves_count, waves_count),
       join_mode = COALESCE(join_mode, 'open'),
       updated_at = now()
   WHERE id = p_event_id;
@@ -63,7 +66,7 @@ END;
 $$ LANGUAGE plpgsql
 SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION update_event(UUID, TEXT, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, BOOLEAN, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_event(UUID, TEXT, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, BOOLEAN, TEXT, INTEGER) TO authenticated;
 
 CREATE OR REPLACE FUNCTION set_challenges_event(
   p_event_id UUID,

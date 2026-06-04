@@ -9,6 +9,7 @@ export const EMPTY_EVENT_FORM: EventFormData = {
   end_time: '',
   always_show_challenges: false,
   image_url: '',
+  waves_count: 1,
 }
 
 export const DEFAULT_EVENT_FILTERS: FilterState = {

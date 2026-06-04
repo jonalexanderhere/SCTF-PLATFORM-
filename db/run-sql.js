@@ -7,7 +7,11 @@ const envContent = fs.readFileSync('.env.local', 'utf8');
 envContent.split('\n').forEach(line => {
     const match = line.match(/^([^=]+)=(.*)$/);
     if (match) {
-        process.env[match[1].trim()] = match[2].trim();
+        let val = match[2].trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+        }
+        process.env[match[1].trim()] = val;
     }
 });
 

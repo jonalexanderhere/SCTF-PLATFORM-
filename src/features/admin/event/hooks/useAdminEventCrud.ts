@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import toast from 'react-hot-toast'
+import { supabase } from '@/shared/lib/supabase'
 import {
   addEvent,
   deleteEvent,
@@ -59,6 +60,7 @@ export function useAdminEventCrud({ onEventsLoaded }: UseAdminEventCrudOptions =
       end_time: toEventInputValue(evt.end_time || null),
       always_show_challenges: Boolean(evt.always_show_challenges),
       image_url: evt.image_url || '',
+      waves_count: evt.waves_count || 1,
     })
     setOpenForm(true)
   }, [])
@@ -79,6 +81,7 @@ export function useAdminEventCrud({ onEventsLoaded }: UseAdminEventCrudOptions =
         end_time: fromEventInputValue(formData.end_time),
         always_show_challenges: formData.always_show_challenges,
         image_url: formData.image_url?.trim() || null,
+        waves_count: Number(formData.waves_count) || 1,
       }
 
       if (editing?.id) {
@@ -141,6 +144,79 @@ export function useAdminEventCrud({ onEventsLoaded }: UseAdminEventCrudOptions =
     }
   }, [pendingDelete, loadEvents])
 
+  const [updatingEventId, setUpdatingEventId] = useState<string | null>(null)
+
+  const handleTogglePause = useCallback(async (eventId: string, currentPaused: boolean) => {
+    setUpdatingEventId(eventId)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Not authenticated')
+
+      const res = await fetch('/api/admin/event/action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          eventId,
+          action: 'toggle-pause',
+          isPaused: !currentPaused
+        })
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to toggle event pause status')
+      }
+
+      toast.success(currentPaused ? 'Event resumed' : 'Event paused')
+      await loadEvents()
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || 'Failed to toggle pause status')
+    } finally {
+      setUpdatingEventId(null)
+    }
+  }, [loadEvents])
+
+  const handleToggleWave = useCallback(async (eventId: string, waveNumber: number, currentOpen: boolean) => {
+    setUpdatingEventId(eventId)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Not authenticated')
+
+      const action = currentOpen ? 'close-wave' : 'open-wave'
+      const res = await fetch('/api/admin/event/action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          eventId,
+          action,
+          waveNumber
+        })
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to toggle wave status')
+      }
+
+      toast.success(currentOpen ? `Wave ${waveNumber} closed` : `Wave ${waveNumber} opened and Discord notified!`)
+      await loadEvents()
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || 'Failed to toggle wave status')
+    } finally {
+      setUpdatingEventId(null)
+    }
+  }, [loadEvents])
+
   return {
     sortedEvents,
     loadEvents,
@@ -159,5 +235,8 @@ export function useAdminEventCrud({ onEventsLoaded }: UseAdminEventCrudOptions =
     setConfirmOpen,
     pendingDelete,
     doDelete,
+    updatingEventId,
+    handleTogglePause,
+    handleToggleWave,
   }
 }

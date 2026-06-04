@@ -69,6 +69,9 @@ export default function AdminEventPage() {
     loadingJoinRequests,
     reviewingRequestId,
     handleReviewRequest,
+    updatingEventId,
+    handleTogglePause,
+    handleToggleWave,
   } = useAdminEventData()
 
   if (authLoading || isLoading) return <Loader fullscreen color="text-blue-500" />
@@ -82,6 +85,9 @@ export default function AdminEventPage() {
           onAdd={openAdd}
           onEdit={openEdit}
           onDelete={askDelete}
+          updatingEventId={updatingEventId}
+          onTogglePause={handleTogglePause}
+          onToggleWave={handleToggleWave}
         />
 
         <EventMembersCard

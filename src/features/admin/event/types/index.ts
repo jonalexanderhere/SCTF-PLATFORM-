@@ -30,5 +30,6 @@ export type EventFormData = {
   end_time: string
   always_show_challenges: boolean
   image_url: string
+  waves_count: number
 }
 

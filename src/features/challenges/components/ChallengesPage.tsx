@@ -29,6 +29,15 @@ export default function ChallengesPage() {
             onTabChange={data.setCurrentTab}
           />
 
+          {data.selectedEventObj?.is_paused && (
+            <div className="p-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 font-bold text-sm flex items-center justify-between shadow-lg backdrop-blur-md animate-pulse">
+              <div className="flex items-center gap-2">
+                <span>⚠️</span>
+                <span>This event is currently PAUSED by the administrator. Flag submission and scoring are temporarily frozen.</span>
+              </div>
+            </div>
+          )}
+
           <ChallengeWatermark />
 
           {data.currentTab === 'challenges' && (

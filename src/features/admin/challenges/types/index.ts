@@ -34,6 +34,7 @@ export type ChallengeFormData = {
   event_id: string | null
   flag_placeholder: boolean
   services: string[]
+  wave: number | ''
 }
 
 export type SubChallengeFormRow = {
@@ -76,4 +77,5 @@ export type ChallengePayload = {
   max_points?: number
   flag_placeholder?: boolean
   services?: string[]
+  wave?: number
 }

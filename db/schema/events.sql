@@ -12,6 +12,9 @@ CREATE TABLE public.events (
   end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL,
   always_show_challenges BOOLEAN DEFAULT false,
   image_url TEXT DEFAULT NULL,
+  is_paused BOOLEAN DEFAULT false,
+  active_waves INTEGER[] DEFAULT ARRAY[1]::INTEGER[],
+  waves_count INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );

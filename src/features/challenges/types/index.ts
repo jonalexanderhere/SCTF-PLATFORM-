@@ -22,7 +22,7 @@ export type ChallengeFilterState = {
 
 export type ChallengeEventFilterItem = Pick<
   Event,
-  'id' | 'name' | 'start_time' | 'end_time' | 'always_show_challenges' | 'join_mode'
+  'id' | 'name' | 'start_time' | 'end_time' | 'always_show_challenges' | 'join_mode' | 'is_paused' | 'active_waves' | 'waves_count'
 > & {
   isLocked?: boolean
 }

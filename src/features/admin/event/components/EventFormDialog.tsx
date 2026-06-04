@@ -150,6 +150,18 @@ const EventFormDialog: React.FC<EventFormDialogProps> = ({
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Optional: Add a banner image URL for this event</p>
             </div>
+
+            <div className="md:col-span-2">
+              <Label>Number of Waves</Label>
+              <Input
+                type="number"
+                min={1}
+                value={formData.waves_count || 1}
+                onChange={(e) => onChange({ ...formData, waves_count: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                className="transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:border-primary-500 dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-900 rounded-md shadow-sm"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Determine the number of phases (waves) in this event.</p>
+            </div>
           </div>
 
           <DialogFooter className="flex flex-row items-center justify-end gap-2 sticky bottom-0 z-10 pt-2">

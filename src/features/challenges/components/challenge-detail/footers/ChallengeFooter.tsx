@@ -12,6 +12,7 @@ interface ChallengeFooterProps {
   flagFeedback: KeyedFlagFeedbackMap
   handleFlagInputChange: (challengeId: string, value: string) => void
   handleFlagSubmit: (challengeId: string) => void
+  isEventPaused?: boolean
 }
 
 export const ChallengeFooter: React.FC<ChallengeFooterProps> = ({
@@ -22,6 +23,7 @@ export const ChallengeFooter: React.FC<ChallengeFooterProps> = ({
   flagFeedback,
   handleFlagInputChange,
   handleFlagSubmit,
+  isEventPaused = false,
 }) => {
   return (
     <DialogFooterLayout>
@@ -33,6 +35,7 @@ export const ChallengeFooter: React.FC<ChallengeFooterProps> = ({
         flagFeedback={flagFeedback}
         handleFlagInputChange={handleFlagInputChange}
         handleFlagSubmit={handleFlagSubmit}
+        isEventPaused={isEventPaused}
       />
     </DialogFooterLayout>
   )

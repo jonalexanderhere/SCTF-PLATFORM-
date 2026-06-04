@@ -23,6 +23,7 @@ export async function addEvent(payload: {
   end_time?: string | null
   always_show_challenges?: boolean | null
   image_url?: string | null
+  waves_count?: number | null
 }) {
   const { data, error } = await supabase.rpc('add_event', {
     p_name: payload.name,
@@ -31,6 +32,7 @@ export async function addEvent(payload: {
     p_end_time: payload.end_time ?? null,
     p_always_show_challenges: payload.always_show_challenges ?? false,
     p_image_url: payload.image_url ?? null,
+    p_waves_count: payload.waves_count ?? 1,
   })
 
   if (error) {
@@ -48,6 +50,7 @@ export async function updateEvent(eventId: string, payload: {
   end_time?: string | null
   always_show_challenges?: boolean | null
   image_url?: string | null
+  waves_count?: number | null
 }) {
   const { data, error } = await supabase.rpc('update_event', {
     p_event_id: eventId,
@@ -57,6 +60,7 @@ export async function updateEvent(eventId: string, payload: {
     p_end_time: payload.end_time ?? null,
     p_always_show_challenges: payload.always_show_challenges ?? null,
     p_image_url: payload.image_url ?? null,
+    p_waves_count: payload.waves_count ?? null,
   })
 
   if (error) {

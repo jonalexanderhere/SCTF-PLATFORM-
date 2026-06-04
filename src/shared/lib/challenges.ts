@@ -116,7 +116,7 @@ export async function getChallengesList(
       let query = supabase
         .from('challenges')
         .select(
-          'id, event_id, title, category, points, max_points, difficulty, is_active, is_maintenance, is_dynamic, min_points, decay_per_solve, total_solves, created_at, updated_at, flag_placeholder, services'
+          'id, event_id, title, category, points, max_points, difficulty, is_active, is_maintenance, is_dynamic, min_points, decay_per_solve, total_solves, created_at, updated_at, flag_placeholder, services, wave'
         )
         .order('points', { ascending: true })
         .order('total_solves', { ascending: false })
@@ -192,7 +192,7 @@ export async function getChallengeDetail(challengeId: string): Promise<Challenge
     const { data, error } = await supabase
       .from('challenges')
       .select(
-        'id, event_id, title, description, category, points, max_points, hint, attachments, difficulty, is_active, is_maintenance, is_dynamic, min_points, decay_per_solve, total_solves, created_at, updated_at, flag_placeholder, services'
+        'id, event_id, title, description, category, points, max_points, hint, attachments, difficulty, is_active, is_maintenance, is_dynamic, min_points, decay_per_solve, total_solves, created_at, updated_at, flag_placeholder, services, wave'
       )
       .eq('id', challengeId)
       .single()
@@ -287,6 +287,7 @@ export async function addChallenge(challengeData: {
   event_id?: string | null
   flag_placeholder?: boolean
   services?: string[]
+  wave?: number
 }): Promise<string | null> {
   try {
     let hintValue: any = null;
@@ -311,7 +312,8 @@ export async function addChallenge(challengeData: {
       p_decay_per_solve: challengeData.decay_per_solve ?? 0,
       p_event_id: challengeData.event_id ?? null,
       p_flag_placeholder: challengeData.flag_placeholder ?? false,
-      p_services: challengeData.services || []
+      p_services: challengeData.services || [],
+      p_wave: challengeData.wave ?? 1
     });
     if (error) {
       throw new Error(error.message)
@@ -344,6 +346,7 @@ export async function updateChallenge(challengeId: string, challengeData: {
   event_id?: string | null
   flag_placeholder?: boolean
   services?: string[]
+  wave?: number
 }): Promise<void> {
   try {
     let hintValue: any = null;
@@ -370,7 +373,8 @@ export async function updateChallenge(challengeId: string, challengeData: {
       p_decay_per_solve: challengeData.decay_per_solve ?? 0,
       p_event_id: challengeData.event_id ?? null,
       p_flag_placeholder: challengeData.flag_placeholder,
-      p_services: challengeData.services
+      p_services: challengeData.services,
+      p_wave: challengeData.wave
     });
     if (error) {
       throw new Error(error.message)

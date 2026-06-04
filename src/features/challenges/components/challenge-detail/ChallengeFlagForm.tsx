@@ -13,6 +13,7 @@ type ChallengeFlagFormProps = {
   flagFeedback: KeyedFlagFeedbackMap
   handleFlagInputChange: (challengeId: string, value: string) => void
   handleFlagSubmit: (challengeId: string) => void
+  isEventPaused?: boolean
 }
 
 export default function ChallengeFlagForm({
@@ -23,6 +24,7 @@ export default function ChallengeFlagForm({
   flagFeedback,
   handleFlagInputChange,
   handleFlagSubmit,
+  isEventPaused = false,
 }: ChallengeFlagFormProps) {
   const overlayRef = React.useRef<HTMLDivElement>(null)
 
@@ -48,7 +50,7 @@ export default function ChallengeFlagForm({
         }}
       >
         <div className="relative flex-1 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 overflow-hidden focus-within:ring-2 focus-within:ring-pink-400 transition-all">
-          {challenge.flag_placeholder && placeholders[challenge.id] && (
+          {challenge.flag_placeholder && placeholders[challenge.id] && !isEventPaused && (
             <div
               ref={overlayRef}
               className="absolute inset-0 pl-4 pr-6 py-2.5 pointer-events-none text-gray-400 dark:text-gray-600 opacity-50 font-mono text-sm overflow-hidden whitespace-pre flex items-center"
@@ -73,19 +75,25 @@ export default function ChallengeFlagForm({
               }
             }}
             maxLength={challenge.flag_placeholder && placeholders[challenge.id] ? placeholders[challenge.id].length : undefined}
-            placeholder={challenge.flag_placeholder && placeholders[challenge.id] ? '' : 'Enter flag here...'}
-            className="w-full h-[38px] pl-4 pr-6 bg-transparent text-gray-900 dark:text-white focus:outline-none relative z-10 font-mono text-sm"
-            autoFocus
+            placeholder={isEventPaused ? 'This event is currently paused...' : (challenge.flag_placeholder && placeholders[challenge.id] ? '' : 'Enter flag here...')}
+            disabled={isEventPaused}
+            className="w-full h-[38px] pl-4 pr-6 bg-transparent text-gray-900 dark:text-white focus:outline-none relative z-10 font-mono text-sm disabled:cursor-not-allowed disabled:text-gray-400"
+            autoFocus={!isEventPaused}
           />
         </div>
         <button
           type="submit"
           disabled={
+            isEventPaused ||
             submitting[challenge.id] ||
             !flagInputs[challenge.id]?.trim() ||
             (challenge.flag_placeholder && placeholders[challenge.id] ? (flagInputs[challenge.id] || '').length !== placeholders[challenge.id].length : false)
           }
-          className="flex items-center justify-center px-6 h-[38px] rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-pink-500/20 hover:shadow-pink-500/40 hover:from-pink-400 hover:to-pink-500 transition-all disabled:opacity-30 active:scale-95 shrink-0"
+          className={`flex items-center justify-center px-6 h-[38px] rounded-xl text-white text-xs font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 shrink-0 ${
+            isEventPaused
+              ? 'bg-gray-300 text-gray-500 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed shadow-none border border-gray-200 dark:border-gray-700'
+              : 'bg-gradient-to-br from-pink-500 to-pink-600 shadow-pink-500/20 hover:shadow-pink-500/40 hover:from-pink-400 hover:to-pink-500 disabled:opacity-30'
+          }`}
         >
           {submitting[challenge.id] ? '...' : 'Submit'}
         </button>

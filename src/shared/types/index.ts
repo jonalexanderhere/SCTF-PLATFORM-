@@ -26,6 +26,9 @@ export interface Event {
   end_time?: string | null
   always_show_challenges?: boolean | null
   image_url?: string | null
+  is_paused?: boolean | null
+  active_waves?: number[] | null
+  waves_count?: number | null
   created_at?: string
   updated_at?: string
 }
@@ -87,6 +90,7 @@ export interface Challenge {
   decay_per_solve: number
   flag_placeholder?: boolean
   services?: string[]
+  wave?: number | null
   created_at: string
   updated_at: string
 }

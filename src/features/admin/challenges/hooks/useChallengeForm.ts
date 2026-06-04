@@ -33,6 +33,7 @@ export const EMPTY_CHALLENGE_FORM: ChallengeFormData = {
   event_id: null,
   flag_placeholder: false,
   services: [],
+  wave: 1,
 }
 
 export function useChallengeForm() {
@@ -117,6 +118,7 @@ export function useChallengeForm() {
       event_id: full.event_id ?? null,
       flag_placeholder: (full as any).flag_placeholder ?? false,
       services: (full as any).services || [],
+      wave: (full as any).wave ?? 1,
     })
     setSubChallenges(normalized)
     setSubChallengesSequential(normalized.length > 0 ? !!normalized[0].is_sequential : false)
@@ -189,6 +191,7 @@ export function useChallengeForm() {
         flag: (formData.flag || '').trim(),
         flag_placeholder: !!formData.flag_placeholder,
         services: (formData.services || []).filter(n => n.trim() !== ''),
+        wave: Number(formData.wave) || 1,
       }
 
       if (editing && typeof formData.is_active !== 'undefined') payload.is_active = !!formData.is_active
