@@ -36,7 +36,6 @@ SET search_path = public, auth;
 
 GRANT EXECUTE ON FUNCTION is_team_captain(UUID) TO authenticated;
 
-DROP FUNCTION IF EXISTS get_team_by_name(TEXT);
 CREATE OR REPLACE FUNCTION get_team_by_name(
   p_name TEXT,
   p_event_id uuid DEFAULT NULL,
@@ -80,7 +79,9 @@ BEGIN
     'id', t.id,
     'name', t.name,
     'invite_code', CASE WHEN v_can_view_invite THEN t.invite_code ELSE NULL END,
-    'created_at', t.created_at
+    'created_at', t.created_at,
+    'is_active', t.is_active,
+    'deactivation_message', t.deactivation_message
   )
   INTO v_team
   FROM public.teams t
@@ -243,14 +244,17 @@ BEGIN
     SELECT t.id AS team_id, t.name AS team_name, COUNT(tm.user_id) AS member_count
     FROM public.teams t
     LEFT JOIN public.team_members tm ON tm.team_id = t.id
+    WHERE t.is_active = true
     GROUP BY t.id, t.name
   ),
   solves_filtered AS (
     SELECT tm.team_id AS team_id, s.challenge_id, s.created_at, c.points, c.event_id
     FROM public.team_members tm
+    JOIN public.teams t ON t.id = tm.team_id
     JOIN public.solves s ON s.user_id = tm.user_id
     JOIN public.challenges c ON c.id = s.challenge_id
-    WHERE (
+    WHERE t.is_active = true
+    AND (
       p_event_mode = 'any'
       OR (p_event_mode = 'main' AND c.event_id IS NULL)
       OR (p_event_id IS NOT NULL AND c.event_id = p_event_id)
@@ -311,7 +315,8 @@ BEGIN
   JOIN public.team_members tm ON tm.team_id = t.id
   JOIN public.solves s ON s.user_id = tm.user_id
   JOIN public.challenges c ON c.id = s.challenge_id
-  WHERE lower(t.name) = ANY (
+  WHERE t.is_active = true
+  AND lower(t.name) = ANY (
     SELECT lower(x) FROM unnest(p_names) AS x
   )
   AND (
@@ -355,7 +360,8 @@ BEGIN
     JOIN public.team_members tm ON tm.team_id = t.id
     JOIN public.solves s ON s.user_id = tm.user_id
     JOIN public.challenges c ON c.id = s.challenge_id
-    WHERE lower(t.name) = ANY (
+    WHERE t.is_active = true
+    AND lower(t.name) = ANY (
       SELECT lower(x) FROM unnest(p_names) AS x
     )
     AND (
@@ -397,7 +403,8 @@ BEGIN
   JOIN public.team_members tm ON tm.team_id = t.id
   JOIN public.solves s ON s.user_id = tm.user_id
   JOIN public.challenges c ON c.id = s.challenge_id
-  WHERE (
+  WHERE t.is_active = true
+  AND (
     p_event_mode = 'any'
     OR (p_event_mode = 'main' AND c.event_id IS NULL)
     OR (p_event_id IS NOT NULL AND c.event_id = p_event_id)
@@ -428,7 +435,8 @@ BEGIN
     JOIN public.team_members tm ON tm.team_id = t.id
     JOIN public.solves s ON s.user_id = tm.user_id
     JOIN public.challenges c ON c.id = s.challenge_id
-    WHERE (
+    WHERE t.is_active = true
+    AND (
       p_event_mode = 'any'
       OR (p_event_mode = 'main' AND c.event_id IS NULL)
       OR (p_event_id IS NOT NULL AND c.event_id = p_event_id)
@@ -467,7 +475,9 @@ BEGIN
     'id', t.id,
     'name', t.name,
     'invite_code', NULL,
-    'created_at', t.created_at
+    'created_at', t.created_at,
+    'is_active', t.is_active,
+    'deactivation_message', t.deactivation_message
   )
   INTO v_team
   FROM public.teams t
@@ -536,6 +546,8 @@ BEGIN
         'invite_code', t.invite_code,
         'captain_user_id', t.captain_user_id,
         'created_at', t.created_at,
+        'is_active', t.is_active,
+        'deactivation_message', t.deactivation_message,
         'member_count', (SELECT count(*) FROM public.team_members tm WHERE tm.team_id = t.id),
         'member_names', (
           SELECT json_agg(u.username)
@@ -651,3 +663,29 @@ CREATE POLICY "Teams admin only"
   FOR ALL
   USING (is_admin())
   WITH CHECK (is_admin());
+
+-- admin toggle team active status
+CREATE OR REPLACE FUNCTION admin_toggle_team_active(
+  p_team_id UUID, 
+  p_is_active BOOLEAN, 
+  p_message TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION 'Only admin can toggle team active status';
+  END IF;
+
+  UPDATE public.teams
+  SET is_active = p_is_active,
+      deactivation_message = CASE WHEN p_is_active THEN NULL ELSE p_message END,
+      updated_at = now()
+  WHERE id = p_team_id;
+
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth;
+
+GRANT EXECUTE ON FUNCTION admin_toggle_team_active(UUID, BOOLEAN, TEXT) TO authenticated;

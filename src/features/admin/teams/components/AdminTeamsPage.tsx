@@ -1,14 +1,14 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { adminGetAllTeams, createTeam, deleteTeam, regenerateTeamInviteCode, kickTeamMember, TeamInfo } from '@/shared/lib/teams'
+import { adminGetAllTeams, createTeam, deleteTeam, regenerateTeamInviteCode, kickTeamMember, adminToggleTeamActive, TeamInfo } from '@/shared/lib/teams'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { Input } from '@/shared/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/ui/dialog'
 import { Label } from '@/shared/ui/label'
-import { Copy, Plus, RefreshCw, Trash2, Shield, Key, Lock, Users, X } from 'lucide-react'
+import { Copy, Plus, RefreshCw, Trash2, Shield, Key, Lock, Users, X, ShieldAlert, Ban } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 type AdminTeamMember = {
@@ -31,6 +31,35 @@ export function AdminTeamsPage() {
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 	const [newTeamName, setNewTeamName] = useState('')
 	const [isCreating, setIsCreating] = useState(false)
+
+	const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false)
+	const [selectedTeam, setSelectedTeam] = useState<AdminTeam | null>(null)
+	const [deactivateReason, setDeactivateReason] = useState('TERDETEKSI AI AGENT')
+	const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+
+	const openDeactivateDialog = (team: AdminTeam) => {
+		setSelectedTeam(team)
+		setDeactivateReason('TERDETEKSI AI AGENT')
+		setIsDeactivateDialogOpen(true)
+	}
+
+	const handleToggleActive = async (teamId: string, isActive: boolean, reason: string | null) => {
+		if (isActive) {
+			if (!confirm('Are you sure you want to re-activate this team? This will restore their scoreboard scores and ranks.')) return
+		}
+		
+		setIsUpdatingStatus(true)
+		const { success, error } = await adminToggleTeamActive(teamId, isActive, reason)
+		if (success) {
+			toast.success(isActive ? 'Team re-activated successfully' : 'Team suspended successfully')
+			setIsDeactivateDialogOpen(false)
+			setSelectedTeam(null)
+			fetchTeams()
+		} else {
+			toast.error(error || 'Failed to update team status')
+		}
+		setIsUpdatingStatus(false)
+	}
 
 	const fetchTeams = async () => {
 		setLoading(true)
@@ -198,6 +227,7 @@ export function AdminTeamsPage() {
 								<TableRow className="hover:bg-transparent border-white/5">
 									<TableHead className="text-neutral-400 font-medium">Team Details</TableHead>
 									<TableHead className="text-neutral-400 font-medium">Credentials</TableHead>
+									<TableHead className="text-neutral-400 font-medium">Status</TableHead>
 									<TableHead className="text-neutral-400 font-medium">Stats</TableHead>
 									<TableHead className="text-right text-neutral-400 font-medium">Actions</TableHead>
 								</TableRow>
@@ -206,12 +236,12 @@ export function AdminTeamsPage() {
 								{loading ? (
 									Array.from({ length: 5 }).map((_, i) => (
 										<TableRow key={i} className="border-white/5">
-											<TableCell colSpan={4} className="h-16 animate-pulse bg-white/[0.01]" />
+											<TableCell colSpan={5} className="h-16 animate-pulse bg-white/[0.01]" />
 										</TableRow>
 									))
 								) : filteredTeams.length === 0 ? (
 									<TableRow>
-										<TableCell colSpan={4} className="h-32 text-center text-neutral-500">
+										<TableCell colSpan={5} className="h-32 text-center text-neutral-500">
 											No teams found.
 										</TableCell>
 									</TableRow>
@@ -273,6 +303,25 @@ export function AdminTeamsPage() {
 												</div>
 											</TableCell>
 											<TableCell>
+												<div className="flex flex-col items-start gap-1">
+													<span
+														className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+															team.is_active !== false
+																? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+																: 'bg-red-500/10 text-red-400 border-red-500/25'
+														}`}
+													>
+														<span className={`w-1.5 h-1.5 rounded-full ${team.is_active !== false ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+														{team.is_active !== false ? 'Active' : 'Suspended'}
+													</span>
+													{team.is_active === false && team.deactivation_message && (
+														<p className="text-[11px] text-neutral-500 max-w-[150px] truncate" title={team.deactivation_message}>
+															Reason: {team.deactivation_message}
+														</p>
+													)}
+												</div>
+											</TableCell>
+											<TableCell>
 												<div className="flex items-center text-neutral-400">
 													<Users className="w-4 h-4 mr-2" />
 													<span className="text-white font-medium">{team.member_count}</span>
@@ -280,14 +329,38 @@ export function AdminTeamsPage() {
 												</div>
 											</TableCell>
 											<TableCell className="text-right">
-												<Button
-													variant="ghost"
-													size="icon"
-													onClick={() => handleDeleteTeam(team.id, team.name)}
-													className="text-neutral-500 hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
-												>
-													<Trash2 className="w-4 h-4" />
-												</Button>
+												<div className="flex items-center justify-end gap-2">
+													{team.is_active !== false ? (
+														<Button
+															variant="ghost"
+															size="icon"
+															onClick={() => openDeactivateDialog(team)}
+															className="text-neutral-500 hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
+															title="Suspend Team"
+														>
+															<Ban className="w-4 h-4" />
+														</Button>
+													) : (
+														<Button
+															variant="ghost"
+															size="icon"
+															onClick={() => handleToggleActive(team.id, true, null)}
+															className="text-neutral-500 hover:text-emerald-400 hover:bg-emerald-400/10 transition-all opacity-0 group-hover:opacity-100"
+															title="Activate Team"
+														>
+															<Shield className="w-4 h-4" />
+														</Button>
+													)}
+													<Button
+														variant="ghost"
+														size="icon"
+														onClick={() => handleDeleteTeam(team.id, team.name)}
+														className="text-neutral-500 hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
+														title="Delete Team"
+													>
+														<Trash2 className="w-4 h-4" />
+													</Button>
+												</div>
 											</TableCell>
 										</TableRow>
 									))
@@ -297,6 +370,51 @@ export function AdminTeamsPage() {
 					</div>
 				</CardContent>
 			</Card>
+			{/* Deactivate Reason Dialog */}
+			<Dialog open={isDeactivateDialogOpen} onOpenChange={setIsDeactivateDialogOpen}>
+				<DialogContent className="bg-neutral-900/90 border-white/10 backdrop-blur-xl">
+					<DialogHeader>
+						<DialogTitle className="text-white flex items-center gap-2">
+							<ShieldAlert className="w-5 h-5 text-red-500" />
+							Suspend Team: {selectedTeam?.name}
+						</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-4 pt-4">
+						<p className="text-neutral-400 text-sm">
+							Suspending a team will hold/ignore all solves & points solved by the team and its members, and they will be hidden from the scoreboard.
+						</p>
+						<div className="space-y-2">
+							<Label htmlFor="deactivate-reason" className="text-neutral-300">Warning Message / Reason</Label>
+							<Input
+								id="deactivate-reason"
+								value={deactivateReason}
+								onChange={(e) => setDeactivateReason(e.target.value)}
+								placeholder="Enter deactivation reason (e.g. TERDETEKSI AI AGENT)..."
+								className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
+								autoFocus
+							/>
+						</div>
+						<div className="flex justify-end gap-3 pt-4">
+							<Button
+								type="button"
+								variant="ghost"
+								onClick={() => setIsDeactivateDialogOpen(false)}
+								className="text-neutral-400 hover:text-white"
+							>
+								Cancel
+							</Button>
+							<Button
+								type="button"
+								disabled={isUpdatingStatus || !deactivateReason.trim()}
+								onClick={() => handleToggleActive(selectedTeam!.id, false, deactivateReason)}
+								className="bg-red-600 hover:bg-red-700 text-white"
+							>
+								{isUpdatingStatus ? 'Suspending...' : 'Confirm Suspension'}
+							</Button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }

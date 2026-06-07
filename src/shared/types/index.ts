@@ -8,6 +8,10 @@ export interface User {
   is_admin?: boolean
   created_at: string
   updated_at: string
+  team_id?: string | null
+  team_name?: string | null
+  team_is_active?: boolean
+  team_deactivation_message?: string | null
 }
 
 export interface Attachment {

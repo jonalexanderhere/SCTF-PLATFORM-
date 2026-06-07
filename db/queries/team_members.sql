@@ -36,7 +36,9 @@ BEGIN
     'invite_code', t.invite_code,
     'secret_key', t.secret_key,
     'access_token', t.access_token,
-    'created_at', t.created_at
+    'created_at', t.created_at,
+    'is_active', t.is_active,
+    'deactivation_message', t.deactivation_message
   )
   INTO v_team
   FROM public.teams t
@@ -168,7 +170,9 @@ BEGIN
     'invite_code', t.invite_code,
     'secret_key', t.secret_key,
     'access_token', t.access_token,
-    'created_at', t.created_at
+    'created_at', t.created_at,
+    'is_active', t.is_active,
+    'deactivation_message', t.deactivation_message
   )
   INTO v_team
   FROM public.teams t

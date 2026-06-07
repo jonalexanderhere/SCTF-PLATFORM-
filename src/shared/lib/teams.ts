@@ -17,6 +17,8 @@ export type TeamInfo = {
 	secret_key?: string
 	access_token?: string
 	created_at: string
+	is_active?: boolean
+	deactivation_message?: string | null
 }
 
 export async function createTeam(name: string): Promise<{ teamId?: string; error?: string }> {
@@ -407,5 +409,19 @@ export async function adminGetAllTeams(): Promise<{ teams: (TeamInfo & { member_
 		return { teams: (data as any[]) || [] }
 	} catch (err: any) {
 		return { teams: [], error: err?.message || 'Failed to fetch all teams' }
+	}
+}
+
+export async function adminToggleTeamActive(teamId: string, isActive: boolean, message: string | null): Promise<{ success: boolean; error?: string }> {
+	try {
+		const { data, error } = await supabase.rpc('admin_toggle_team_active', {
+			p_team_id: teamId,
+			p_is_active: isActive,
+			p_message: message,
+		})
+		if (error) return { success: false, error: error.message }
+		return { success: Boolean(data) }
+	} catch (err: any) {
+		return { success: false, error: err?.message || 'Failed to update team status' }
 	}
 }

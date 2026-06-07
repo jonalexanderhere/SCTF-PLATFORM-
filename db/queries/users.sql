@@ -76,6 +76,8 @@ SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION get_username_by_email(text) TO anon, authenticated;
 
+DROP FUNCTION IF EXISTS get_user_profile(UUID) CASCADE;
+
 CREATE OR REPLACE FUNCTION get_user_profile(p_id UUID)
 RETURNS TABLE (
   id UUID,
@@ -83,7 +85,11 @@ RETURNS TABLE (
   picture TEXT,
   profile_picture_url TEXT,
   solved_event_ids UUID[],
-  has_main_solved BOOLEAN
+  has_main_solved BOOLEAN,
+  team_id UUID,
+  team_name TEXT,
+  team_is_active BOOLEAN,
+  team_deactivation_message TEXT
 ) AS $$
 BEGIN
   RETURN QUERY
@@ -111,9 +117,15 @@ BEGIN
       JOIN public.challenges c ON c.id = s.challenge_id
       WHERE s.user_id = u.id
         AND c.event_id IS NULL
-    ) AS has_main_solved
+    ) AS has_main_solved,
+    t.id AS team_id,
+    t.name AS team_name,
+    t.is_active AS team_is_active,
+    t.deactivation_message AS team_deactivation_message
   FROM public.users u
   LEFT JOIN auth.users au ON au.id = u.id
+  LEFT JOIN public.team_members tm ON tm.user_id = u.id
+  LEFT JOIN public.teams t ON t.id = tm.team_id
   WHERE u.id = p_id;
 END;
 $$ LANGUAGE plpgsql
@@ -178,6 +190,12 @@ BEGIN
     FROM public.users u
     LEFT JOIN public.solves s ON u.id = s.user_id
     LEFT JOIN public.challenges c ON s.challenge_id = c.id
+    WHERE NOT EXISTS (
+      SELECT 1 
+      FROM public.team_members tm
+      JOIN public.teams t ON t.id = tm.team_id
+      WHERE tm.user_id = u.id AND t.is_active = false
+    )
     GROUP BY u.id
   ) r
   WHERE r.id = p_id;
@@ -190,7 +208,13 @@ BEGIN
   INTO v_score
   FROM public.solves s
   JOIN public.challenges c ON s.challenge_id = c.id
-  WHERE s.user_id = p_id;
+  WHERE s.user_id = p_id
+    AND NOT EXISTS (
+      SELECT 1 
+      FROM public.team_members tm
+      JOIN public.teams t ON t.id = tm.team_id
+      WHERE tm.user_id = p_id AND t.is_active = false
+    );
 
   SELECT COALESCE(
     json_agg(
@@ -210,6 +234,12 @@ BEGIN
   FROM public.solves s
   JOIN public.challenges c ON s.challenge_id = c.id
   WHERE s.user_id = p_id
+    AND NOT EXISTS (
+      SELECT 1 
+      FROM public.team_members tm
+      JOIN public.teams t ON t.id = tm.team_id
+      WHERE tm.user_id = p_id AND t.is_active = false
+    )
     AND (
       p_event_mode = 'any'
       OR (p_event_mode = 'is_null' AND c.event_id IS NULL)
@@ -289,6 +319,12 @@ BEGIN
   FROM public.users u
   LEFT JOIN public.solves s ON u.id = s.user_id
   LEFT JOIN public.challenges c ON s.challenge_id = c.id
+  WHERE NOT EXISTS (
+    SELECT 1 
+    FROM public.team_members tm
+    JOIN public.teams t ON t.id = tm.team_id
+    WHERE tm.user_id = u.id AND t.is_active = false
+  )
   GROUP BY u.id, u.username
   HAVING COALESCE(
     SUM(
@@ -332,6 +368,12 @@ BEGIN
   JOIN public.challenges c ON c.id = s.challenge_id
   JOIN public.users u ON u.id = s.user_id
   WHERE s.user_id = ANY(p_user_ids)
+    AND NOT EXISTS (
+      SELECT 1 
+      FROM public.team_members tm
+      JOIN public.teams t ON t.id = tm.team_id
+      WHERE tm.user_id = u.id AND t.is_active = false
+    )
     AND (
       p_event_mode = 'any'
       OR (p_event_mode = 'is_null' AND c.event_id IS NULL)

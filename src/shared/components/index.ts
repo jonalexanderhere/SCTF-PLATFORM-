@@ -9,3 +9,4 @@ export { default as BrandLogo } from '@/shared/components/custom/BrandLogo'
 export { default as EventSelect } from '@/shared/components/custom/EventSelect'
 
 export * as customComponents from './custom'
+export { DeactivationBanner } from './DeactivationBanner'

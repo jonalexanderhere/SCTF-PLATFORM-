@@ -8,6 +8,7 @@ import './globals.css'
 import { Toaster } from "react-hot-toast"
 import { Navbar, ScrollToggle } from '@/_layouts'
 import { AuthProvider, ThemeProvider, LogsProvider, EventProvider, FilterProvider, SubChallengesProvider } from '@/shared/contexts'
+import { DeactivationBanner } from '@/shared/components'
 import APP from '@/config'
 import ChallengeJoyride from '@/features/challenges/components/ChallengeJoyride'
 
@@ -97,7 +98,10 @@ export default async function RootLayout({
                     <LogsProvider>
                       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
                         <Navbar />
-                        <div className="pt-14">{children}</div>
+                        <div className="pt-14">
+                          <DeactivationBanner />
+                          {children}
+                        </div>
                         <Toaster position="top-right" reverseOrder={false} />
                         <ChallengeJoyride />
                         <ScrollToggle />
